@@ -1,0 +1,17 @@
+{
+  "watch": [
+    "index.js",
+    "app.js",
+    "loadEnv.js",
+    "config",
+    "controllers",
+    "middleware",
+    "models",
+    "routes"
+  ],
+  "ext": "js,mjs,cjs,json",
+  "ignore": ["node_modules/**"],
+  "exec": "node index.js",
+  "delay": 300,
+  "signal": "SIGTERM"
+}

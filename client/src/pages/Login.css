@@ -1,0 +1,304 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: linear-gradient(165deg, #eef0ff 0%, #f5f3ff 45%, #ede8ff 100%);
+  box-sizing: border-box;
+}
+
+.login-page--checking {
+  font-size: 0.95rem;
+  color: #666;
+}
+
+.login-card {
+  display: flex;
+  width: 100%;
+  max-width: 56rem;
+  min-height: 32rem;
+  background: #fff;
+  border-radius: 1.35rem;
+  box-shadow:
+    0 25px 50px -12px rgba(99, 88, 255, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  overflow: hidden;
+}
+
+.login-card__form {
+  flex: 1;
+  padding: 2.75rem 2.5rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.login-card__brand {
+  margin-bottom: 2rem;
+}
+
+.login-card__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #111;
+}
+
+.login-card__subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #7a7a8a;
+  line-height: 1.45;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.login-field {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1.15rem;
+  background: #f3f3ff;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.login-field:focus-within {
+  border-color: rgba(99, 88, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(99, 88, 255, 0.15);
+}
+
+.login-field__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  color: #8b87a6;
+  font-size: 1rem;
+}
+
+.login-field__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  color: #111;
+  outline: none;
+}
+
+.login-field__input::placeholder {
+  color: #9b98b5;
+}
+
+.login-error {
+  margin: 0 0 1rem;
+  padding: 0.7rem 1rem;
+  font-size: 0.82rem;
+  color: #b00020;
+  background: #ffebee;
+  border-radius: 0.65rem;
+}
+
+.login-submit {
+  margin-top: 0.35rem;
+  width: 100%;
+  padding: 0.95rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #6358ff 0%, #7b61ff 55%, #8b6cff 100%);
+  box-shadow: 0 10px 24px -6px rgba(99, 88, 255, 0.55);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.login-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px -6px rgba(99, 88, 255, 0.6);
+}
+
+.login-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.75rem 0 1.15rem;
+  color: #9a96b0;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #dcd8ec 15%, #dcd8ec 85%, transparent);
+}
+
+.login-social {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.login-social__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #333;
+  background: #fff;
+  border: 1px solid #e2e0ef;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.login-social__btn:hover {
+  background: #fafaff;
+  border-color: #d0cce0;
+}
+
+.login-social__icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.login-footer {
+  margin-top: 1.75rem;
+  text-align: center;
+  font-size: 0.88rem;
+  color: #6e6b82;
+}
+
+.login-footer a {
+  color: #6358ff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-footer a:hover {
+  text-decoration: underline;
+}
+
+/* —— Visual panel —— */
+.login-card__visual {
+  position: relative;
+  flex: 1;
+  min-height: 22rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.75rem;
+  background: linear-gradient(155deg, #6358ff 0%, #5146e8 38%, #6a4cff 78%, #5f4fd8 100%);
+  overflow: hidden;
+}
+
+.login-card__visual::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 60 Q30 20 60 60 T120 60' fill='none' stroke='%23ffffff' stroke-width='1.2'/%3E%3Cpath d='M0 80 Q40 100 80 80 T160 80' fill='none' stroke='%23ffffff' stroke-width='0.9' opacity='0.7'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+}
+
+.login-card__visual::after {
+  content: '';
+  position: absolute;
+  inset: -20% -30% 40% -20%;
+  background: radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.18) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.login-card__visual-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 22rem;
+}
+
+.login-card__frame {
+  position: relative;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 28px 56px -16px rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.login-card__frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: middle;
+  object-fit: cover;
+  aspect-ratio: 4 / 5;
+}
+
+.login-card__badge {
+  position: absolute;
+  left: -1rem;
+  top: 42%;
+  transform: translateY(-50%);
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  color: #ffc400;
+  font-size: 1.1rem;
+  z-index: 2;
+}
+
+@media (max-width: 960px) {
+  .login-card {
+    flex-direction: column;
+    max-width: 26rem;
+  }
+
+  .login-card__form {
+    padding: 2.25rem 1.75rem 2rem;
+  }
+
+  .login-card__visual {
+    display: none;
+  }
+}
