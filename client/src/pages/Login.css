@@ -1,5 +1,5 @@
 .login-page {
-  min-height: 100vh;
+  min-height: calc(100vh - 4.75rem);
   display: flex;
   align-items: center;
   justify-content: center;

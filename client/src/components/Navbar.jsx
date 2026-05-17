@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { FaSearch, FaUser, FaShoppingBag } from 'react-icons/fa'
+import './Navbar.css'
 
 const Navbar = memo(function Navbar({ me, isAdmin, sessionChecked, onLogout }) {
   return (

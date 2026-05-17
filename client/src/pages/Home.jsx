@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   FaRegHeart,
   FaInstagram,
@@ -7,35 +7,12 @@ import {
   FaTwitter,
 } from 'react-icons/fa'
 import { getMeRequest } from '../api/auth.js'
+import { listAllProductOptionsRequest } from '../api/productOptions.js'
 import Navbar from '../components/Navbar.jsx'
 import './Home.css'
 
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=1800&q=80'
-
-const PRODUCTS = [
-  {
-    id: 'spot-stripe',
-    name: 'SPOT STRIPE SHIRTS',
-    image:
-      'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&w=800&q=80',
-    colors: ['#ff6b35', '#1f4ea1'],
-  },
-  {
-    id: 'spot-cool-polo',
-    name: 'SPOT COOL POLO SHIRTS',
-    image:
-      'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?auto=format&fit=crop&w=800&q=80',
-    colors: ['#1f4ea1', '#0f2c5d'],
-  },
-  {
-    id: 'spot-print',
-    name: 'SPOT PRINT SHIRTS',
-    image:
-      'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80',
-    colors: ['#cfe4f5'],
-  },
-]
 
 const SEASON_FILTERS = [
   { id: 'all', label: 'ALL' },
@@ -78,8 +55,21 @@ const COLOR_SWATCHES = [
   '#e02828',
 ]
 
+const PRODUCT_CATEGORY_LABEL = {
+  men: 'MEN',
+  women: 'WOMEN',
+  unisex: 'UNISEX',
+}
+
+const KRW = new Intl.NumberFormat('ko-KR')
+
 function isAdminUser(user) {
   return Boolean(user) && user['user-type'] === 'admin'
+}
+
+function formatPrice(value) {
+  const n = Number(value)
+  return Number.isFinite(n) ? `₩${KRW.format(n)}` : ''
 }
 
 function useCurrentUser() {
@@ -129,14 +119,64 @@ function useCurrentUser() {
   return { me, sessionChecked, logout }
 }
 
+function useHomeProducts() {
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    setLoading(true)
+    setError('')
+
+    listAllProductOptionsRequest({}, { signal: controller.signal })
+      .then(({ ok, status, data }) => {
+        if (!ok) {
+          setProducts([])
+          setError(
+            (data && typeof data === 'object' && data.message) ||
+              `상품 데이터를 불러오지 못했습니다. (${status})`
+          )
+          return
+        }
+
+        const d = data && typeof data === 'object' ? data : {}
+        setProducts(Array.isArray(d.items) ? d.items : [])
+      })
+      .catch((err) => {
+        if (err?.name === 'AbortError') return
+        setProducts([])
+        setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.')
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [])
+
+  return { products, loading, error }
+}
+
 export default function Home() {
   const { me, sessionChecked, logout } = useCurrentUser()
+  const { products, loading, error } = useHomeProducts()
   const [gender, setGender] = useState('men')
   const handleGenderChange = useCallback((nextGender) => {
     setGender(nextGender)
   }, [])
 
   const isAdmin = isAdminUser(me)
+  const visibleProducts = useMemo(
+    () =>
+      products.filter(
+        (product) =>
+          product.product_category === gender ||
+          product.product_category === 'unisex'
+      ),
+    [products, gender]
+  )
 
   return (
     <div className="home">
@@ -150,7 +190,11 @@ export default function Home() {
 
       <div className="home__layout">
         <ProductFilters gender={gender} onGenderChange={handleGenderChange} />
-        <ProductGrid />
+        <ProductGrid
+          products={visibleProducts}
+          loading={loading}
+          error={error}
+        />
       </div>
 
       <HomeFooter />
@@ -257,44 +301,83 @@ const ColorFilter = memo(function ColorFilter() {
   )
 })
 
-const ProductGrid = memo(function ProductGrid() {
+const ProductGrid = memo(function ProductGrid({ products, loading, error }) {
   return (
     <main className="home__content" aria-label="상품 목록">
-      <p className="home__count">9개 상품</p>
-      <ul className="home__products">
-        {PRODUCTS.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </ul>
+      <p className="home__count">
+        {loading ? '상품을 불러오는 중...' : `${products.length}개 상품`}
+      </p>
+
+      {loading ? (
+        <ul className="home__products" aria-busy="true">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <li key={idx} className="home__product home__product--loading">
+              <div className="home__product-skeleton home__product-skeleton--image" />
+              <div className="home__product-skeleton" />
+            </li>
+          ))}
+        </ul>
+      ) : error ? (
+        <div className="home__products-message" role="alert">
+          {error}
+        </div>
+      ) : products.length === 0 ? (
+        <div className="home__products-message">등록된 상품이 없습니다.</div>
+      ) : (
+        <ul className="home__products">
+          {products.map((product) => (
+            <ProductCard
+              key={product._id ?? product.option_id}
+              product={product}
+            />
+          ))}
+        </ul>
+      )}
     </main>
   )
 })
 
 const ProductCard = memo(function ProductCard({ product }) {
+  const [imageFailed, setImageFailed] = useState(false)
+  const productId = product.option_id ?? product._id
+  const name = product.product_name || '상품명 없음'
+  const category =
+    PRODUCT_CATEGORY_LABEL[product.product_category] ?? product.product_category
+  const image = product.option_image_url
+  const price = formatPrice(product.price)
+
   return (
     <li className="home__product">
       <div className="home__product-color-row">
-        {product.colors.map((c, idx) => (
+        {[product.product_category, product.sub_category].filter(Boolean).map((c, idx) => (
           <span
-            key={`${product.id}-${idx}`}
-            className="home__product-color"
-            style={{ background: c }}
-            aria-hidden
-          />
+            key={`${productId}-${idx}`}
+            className="home__product-badge"
+          >
+            {idx === 0 ? category : c}
+          </span>
         ))}
       </div>
-      <a className="home__product-image" href={`#${product.id}`}>
-        <img
-          src={product.image}
-          alt={product.name}
-          loading="lazy"
-          decoding="async"
-        />
+      <a className="home__product-image" href={`#product-${productId}`}>
+        {image && !imageFailed ? (
+          <img
+            src={image}
+            alt={name}
+            loading="lazy"
+            decoding="async"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <span className="home__product-placeholder">No Image</span>
+        )}
       </a>
       <div className="home__product-meta">
-        <a className="home__product-name" href={`#${product.id}`}>
-          {product.name}
-        </a>
+        <div className="home__product-text">
+          <a className="home__product-name" href={`#product-${productId}`}>
+            {name}
+          </a>
+          {price ? <span className="home__product-price">{price}</span> : null}
+        </div>
         <button
           type="button"
           className="home__product-wish"

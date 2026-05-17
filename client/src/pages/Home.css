@@ -365,6 +365,8 @@
 .home__product-color-row {
   display: flex;
   gap: 0.4rem;
+  min-height: 1.35rem;
+  align-items: center;
 }
 
 .home__product-color {
@@ -372,6 +374,19 @@
   height: 0.65rem;
   border-radius: 50%;
   display: inline-block;
+}
+
+.home__product-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: #f1f1f1;
+  color: #555;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .home__product-image {
@@ -390,6 +405,18 @@
   transition: transform 0.25s ease;
 }
 
+.home__product-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #aaa;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .home__product-image:hover img {
   transform: scale(1.03);
 }
@@ -399,6 +426,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.home__product-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
 }
 
 .home__product-name {
@@ -418,6 +453,12 @@
   color: #000;
 }
 
+.home__product-price {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #111;
+}
+
 .home__product-wish {
   background: transparent;
   border: none;
@@ -430,6 +471,42 @@
 
 .home__product-wish:hover {
   color: #b00020;
+}
+
+.home__products-message {
+  padding: 3rem 1rem;
+  border: 1px solid #ececec;
+  border-radius: 0.35rem;
+  background: #fafafa;
+  color: #666;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.home__product--loading {
+  gap: 0.85rem;
+}
+
+.home__product-skeleton {
+  height: 1rem;
+  border-radius: 0.3rem;
+  background: linear-gradient(90deg, #f4f4f4 0%, #e7e7e7 50%, #f4f4f4 100%);
+  background-size: 200% 100%;
+  animation: home-shimmer 1.4s linear infinite;
+}
+
+.home__product-skeleton--image {
+  aspect-ratio: 4 / 5;
+  height: auto;
+}
+
+@keyframes home-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* —— Footer —— */

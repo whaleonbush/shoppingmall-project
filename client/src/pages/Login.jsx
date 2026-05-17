@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { FaUser, FaLock, FaBolt, FaFacebookF } from 'react-icons/fa'
 import { FcGoogle } from 'react-icons/fc'
 import { loginRequest, getMeRequest } from '../api/auth.js'
+import Navbar from '../components/Navbar.jsx'
 import './Login.css'
 
 const HERO_IMAGE =
@@ -66,6 +67,11 @@ export default function Login() {
     }
   }, [navigate])
 
+  function handleNavbarLogout() {
+    sessionStorage.removeItem('token')
+    sessionStorage.removeItem('authUser')
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -116,16 +122,31 @@ export default function Login() {
 
   if (checkingSession) {
     return (
-      <div className="login-page login-page--checking" role="status" aria-live="polite">
-        세션 확인 중…
-      </div>
+      <>
+        <Navbar
+          me={null}
+          isAdmin={false}
+          sessionChecked={false}
+          onLogout={handleNavbarLogout}
+        />
+        <div className="login-page login-page--checking" role="status" aria-live="polite">
+          세션 확인 중…
+        </div>
+      </>
     )
   }
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <section className="login-card__form" aria-labelledby="login-heading">
+    <>
+      <Navbar
+        me={null}
+        isAdmin={false}
+        sessionChecked
+        onLogout={handleNavbarLogout}
+      />
+      <div className="login-page">
+        <div className="login-card">
+          <section className="login-card__form" aria-labelledby="login-heading">
           <div className="login-card__brand">
             <h1 id="login-heading" className="login-card__title">
               LOGIN
@@ -198,26 +219,27 @@ export default function Login() {
             Don&apos;t have an account?{' '}
             <Link to="/signup">Sign up</Link>
           </p>
-        </section>
+          </section>
 
-        <aside className="login-card__visual" aria-hidden>
-          <div className="login-card__visual-inner">
-            <div className="login-card__frame">
-              <span className="login-card__badge">
-                <FaBolt />
-              </span>
-              <img
-                src={HERO_IMAGE}
-                alt=""
-                width={720}
-                height={900}
-                loading="lazy"
-                decoding="async"
-              />
+          <aside className="login-card__visual" aria-hidden>
+            <div className="login-card__visual-inner">
+              <div className="login-card__frame">
+                <span className="login-card__badge">
+                  <FaBolt />
+                </span>
+                <img
+                  src={HERO_IMAGE}
+                  alt=""
+                  width={720}
+                  height={900}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
