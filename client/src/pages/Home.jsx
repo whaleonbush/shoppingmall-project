@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   FaRegHeart,
   FaInstagram,
@@ -358,7 +359,7 @@ const ProductCard = memo(function ProductCard({ product }) {
           </span>
         ))}
       </div>
-      <a className="home__product-image" href={`#product-${productId}`}>
+      <Link className="home__product-image" to={`/products/${productId}`}>
         {image && !imageFailed ? (
           <img
             src={image}
@@ -370,12 +371,12 @@ const ProductCard = memo(function ProductCard({ product }) {
         ) : (
           <span className="home__product-placeholder">No Image</span>
         )}
-      </a>
+      </Link>
       <div className="home__product-meta">
         <div className="home__product-text">
-          <a className="home__product-name" href={`#product-${productId}`}>
+          <Link className="home__product-name" to={`/products/${productId}`}>
             {name}
-          </a>
+          </Link>
           {price ? <span className="home__product-price">{price}</span> : null}
         </div>
         <button

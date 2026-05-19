@@ -69,6 +69,40 @@
   color: #000;
 }
 
+.home__icon-btn:hover .home__icon-badge {
+  background: #000;
+}
+
+.home__icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.home__icon-badge {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.55rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #b00020;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  box-shadow: 0 0 0 2px #fff;
+  pointer-events: none;
+  transition: background 0.15s ease;
+}
+
 .home__icon-label {
   font-size: 0.6rem;
   font-weight: 600;

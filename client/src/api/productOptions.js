@@ -156,6 +156,22 @@ export async function listAllProductOptionsRequest(params = {}, options = {}) {
 }
 
 /**
+ * Get a single product option by option_id (number) or Mongo _id (string).
+ *
+ * @param {string | number} id
+ * @param {{ signal?: AbortSignal }} [options]
+ * @returns {Promise<{ ok: boolean; status: number; data: unknown }>}
+ */
+export async function getProductOptionRequest(id, options = {}) {
+  const res = await fetch(productOptionsUrl(`/${encodeURIComponent(id)}`), {
+    method: 'GET',
+    signal: options.signal,
+  })
+
+  return parseResponse(res)
+}
+
+/**
  * Delete a product option by option_id (number) or Mongo _id (string).
  * Requires an admin user's JWT.
  *

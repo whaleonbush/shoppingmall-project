@@ -765,6 +765,415 @@ WOMEN 클릭 → product_category가 women 또는 unisex인 상품 표시
 
 ---
 
+## 6-19. 상품 디테일 페이지 만들기
+
+파일:
+
+- `client/src/pages/ProductDetail.jsx`
+- `client/src/pages/ProductDetail.css`
+- `client/src/api/productOptions.js`
+- `client/src/App.jsx`
+
+지금까지는 메인 페이지에서 상품을 보여주기만 했습니다. 이제 상품을 클릭하면 그 상품 하나만 자세히 볼 수 있는 페이지로 이동하게 만들었습니다.
+
+흐름:
+
+```txt
+메인 페이지에서 상품 카드 클릭
+  ↓
+URL이 /products/:id 로 이동
+  ↓
+ProductDetail 컴포넌트가 마운트됨
+  ↓
+useParams 로 :id 값을 꺼냄
+  ↓
+getProductOptionRequest(id) 호출
+  ↓
+GET /api/product-options/:id
+  ↓
+서버에서 상품 1개 데이터를 JSON으로 응답
+  ↓
+화면에 큰 이미지, 이름, 가격, 사이즈 선택, 쇼핑백 담기 버튼 등 표시
+```
+
+상품 카드를 클릭 가능하게 만든 부분:
+
+```jsx
+// client/src/pages/Home.jsx 의 ProductCard
+<Link to={`/products/${product.option_id}`} className="product-card">
+  {/* 카드 내용 */}
+</Link>
+```
+
+주석:
+
+```jsx
+// Link 컴포넌트는 a 태그처럼 보이지만 페이지를 새로고침하지 않습니다.
+// 클릭하면 주소만 /products/123 처럼 바뀌고, 같은 React 앱 안에서 화면만 갈아끼웁니다.
+```
+
+상품 디테일 페이지에 들어간 요소:
+
+- 좌측: 큰 상품 이미지 (없으면 "No Image" 플레이스홀더)
+- 우측 상단: 카테고리/하위 카테고리 배지
+- 우측 본문: 상품명, 부제목, 가격
+- 사이즈 선택 버튼 (S, M, L, XL 등 옵션 선택)
+- 매장 재고 확인 안내
+- 쇼핑백 담기 버튼
+- 케어 가이드, 소재 정보
+- 펼쳤다 접을 수 있는 아코디언 (상품 정보, 배송/반품, 리뷰)
+- 추천 상품 목록
+- 뉴스레터 가입 영역
+
+쉽게 말하면, 이 페이지 하나가 "상품 한 개의 모든 정보를 보여주는 카탈로그 페이지" 역할을 합니다.
+
+---
+
+## 6-20. 장바구니 스키마 만들기
+
+파일:
+
+- `server/models/Cart.js`
+
+장바구니는 "유저가 사려고 담아둔 상품들의 임시 보관함"입니다. 그래서 다음 두 가지 정보가 필요합니다.
+
+- 이 장바구니가 누구 것인지 (`user`)
+- 그 안에 담긴 항목들이 무엇인지 (`items`)
+
+각 항목(`cartItemSchema`)은 다음을 가집니다.
+
+- `option_id`: 어떤 상품 옵션인지
+- `quantity`: 몇 개 담았는지
+- `size`: 어떤 사이즈인지
+- `added_at`: 언제 담았는지
+
+```js
+// server/models/Cart.js
+const cartItemSchema = new mongoose.Schema(
+  {
+    option_id: { type: Number, required: true }, // 상품 옵션의 고유 번호
+    quantity: { type: Number, required: true, min: 1 }, // 1개 이상이어야 합니다.
+    size: { type: String, required: true }, // S, M, L 같은 글자
+    added_at: { type: Date, default: Date.now }, // 담은 시간 자동 기록
+  },
+  { _id: false } // 따로 _id 를 만들지 않습니다.
+)
+
+const cartSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      unique: true, // 한 유저는 장바구니 1개만 가집니다.
+    },
+    items: { type: [cartItemSchema], default: [] },
+  },
+  { timestamps: true }
+)
+```
+
+중요한 규칙:
+
+같은 상품을 같은 사이즈로 두 번 담으면 "중복 항목"이 생깁니다. 이걸 막기 위해 저장 직전에 검사하는 `pre('save')` 훅을 달았습니다.
+
+```js
+cartSchema.pre('save', function (next) {
+  const seen = new Set()
+  for (const item of this.items) {
+    const key = `${item.option_id}::${item.size}`
+    if (seen.has(key)) {
+      return next(new Error('같은 옵션과 사이즈는 중복으로 담을 수 없습니다.'))
+    }
+    seen.add(key)
+  }
+  next()
+})
+```
+
+주석:
+
+```js
+// (option_id, size) 조합을 set에 저장하면서
+// 이미 본 조합이 또 나오면 에러를 발생시킵니다.
+// 이렇게 하면 "같은 검정 M 사이즈 티셔츠 2줄"이 아니라 "수량 2"로 합쳐지게 됩니다.
+```
+
+---
+
+## 6-21. 장바구니 CRUD API 만들기
+
+파일:
+
+- `server/controllers/cartController.js`
+- `server/routes/cart.js`
+- `server/routes/index.js`
+
+장바구니는 로그인한 사람에게만 의미가 있습니다. 그래서 모든 라우트에 `requireAuth` 미들웨어를 붙여서 토큰이 있어야만 동작합니다.
+
+API 주소:
+
+```txt
+GET    /api/cart                       내 장바구니 가져오기 (없으면 만들어줌)
+POST   /api/cart/items                 장바구니에 상품 담기
+PATCH  /api/cart/items/:option_id      장바구니 항목 수정 (수량/사이즈)
+DELETE /api/cart/items/:option_id      장바구니에서 항목 빼기
+DELETE /api/cart                       장바구니 전체 비우기
+```
+
+핵심 로직 요약:
+
+```txt
+GET /api/cart
+  ↓
+유저의 장바구니가 없으면 빈 장바구니를 자동 생성
+  ↓
+각 항목의 option_id로 상품 정보를 조회 (이름, 가격, 이미지)
+  ↓
+총 수량, 총 금액을 계산해서 함께 응답
+```
+
+```txt
+POST /api/cart/items
+  ↓
+이미 같은 (option_id, size) 항목이 있으면
+  → 수량만 더해줌 (중복 항목 만들지 않음)
+  ↓
+없으면 새 항목으로 추가
+```
+
+도우미 함수 예시:
+
+```js
+// 같은 옵션 + 같은 사이즈 항목이 이미 있는지 찾기
+function findItemIndex(items, option_id, size) {
+  return items.findIndex(
+    (it) => it.option_id === option_id && it.size === size
+  )
+}
+```
+
+`GET /api/cart`의 응답을 풍성하게 해주는 `enrichCart`:
+
+```js
+// cart 안의 option_id들로 상품 옵션을 한 번에 조회한 뒤
+// 각 항목에 product_name, price, option_image_url을 붙여 줍니다.
+// 동시에 총 수량, 총 금액도 계산합니다.
+```
+
+이렇게 하면 화면에서는 추가로 상품 정보를 따로 조회할 필요 없이, 장바구니 응답 한 번으로 화면을 다 그릴 수 있습니다.
+
+라우터 등록:
+
+```js
+// server/routes/index.js
+router.use('/cart', cartRouter)
+```
+
+주석:
+
+```js
+// 이제 /api/cart 로 시작하는 모든 요청은 cart 라우터가 책임집니다.
+```
+
+---
+
+## 6-22. 클라이언트 장바구니 페이지와 상품 디테일 연동
+
+파일:
+
+- `client/src/api/cart.js`
+- `client/src/pages/Cart.jsx`
+- `client/src/pages/Cart.css`
+- `client/src/pages/ProductDetail.jsx`
+- `client/src/App.jsx`
+
+API 호출 함수들을 `client/src/api/cart.js` 한 곳에 모아두었습니다.
+
+```js
+// 모든 함수는 sessionStorage에 있는 token을 받아서 Authorization 헤더에 담아 보냅니다.
+export async function getMyCartRequest(token) { ... }
+export async function addCartItemRequest(payload, token) { ... }
+export async function updateCartItemRequest(option_id, body, token) { ... }
+export async function removeCartItemRequest(option_id, size, token) { ... }
+export async function clearCartRequest(token) { ... }
+```
+
+상품 디테일 페이지의 "쇼핑백 담기" 버튼:
+
+```txt
+사용자가 사이즈 선택
+  ↓
+"쇼핑백 담기" 클릭
+  ↓
+addCartItemRequest({ option_id, size, quantity: 1 }, token) 호출
+  ↓
+POST /api/cart/items
+  ↓
+서버가 같은 (option_id, size)가 있으면 수량을 +1, 없으면 새로 추가
+  ↓
+응답으로 업데이트된 cart를 받아 토스트 메시지 표시
+```
+
+장바구니 페이지(`/cart`)의 동작:
+
+- 진입 시 `getMyCartRequest`로 내 장바구니를 가져옴
+- 항목별로 수량을 +/- 할 수 있고, 즉시 `updateCartItemRequest` 호출
+- 각 항목에 있는 삭제 버튼은 `removeCartItemRequest` 호출
+- 우측 요약 패널에 총 수량, 상품 금액, 배송비, 결제 예상 금액 표시
+- "전체 비우기" 버튼은 `clearCartRequest` 호출 (확인창 표시)
+- 비어 있을 때는 "상품 둘러보기" 버튼으로 메인으로 돌아갈 수 있음
+- 로딩 중에는 스켈레톤 카드, 에러는 다시 시도 버튼 표시
+
+화면 라우트 등록:
+
+```jsx
+// client/src/App.jsx
+<Route path="/products/:id" element={<ProductDetail />} />
+<Route path="/cart" element={<Cart />} />
+```
+
+주석:
+
+```jsx
+// :id 부분은 동적 파라미터입니다.
+// /products/1, /products/2 처럼 어떤 숫자든 같은 컴포넌트에서 처리합니다.
+```
+
+---
+
+## 6-23. Navbar 장바구니 아이콘에 개수 표시 UI
+
+파일:
+
+- `client/src/api/cart.js`
+- `client/src/components/Navbar.jsx`
+- `client/src/components/Navbar.css`
+- `client/src/pages/Cart.jsx`
+- `client/src/pages/ProductDetail.jsx`
+
+목표:
+
+상단 우측 BAG 아이콘 위에 작은 빨간 배지를 띄워, 지금 장바구니에 몇 개가 들어 있는지 한눈에 보여주는 것입니다.
+
+설계 아이디어:
+
+장바구니는 여러 페이지(상품 디테일, 장바구니 페이지)에서 바뀝니다. 그래서 "장바구니가 바뀌었다"는 사실을 어디서든 알릴 수 있어야 합니다.
+
+전역 상태(Redux 등) 없이도 풀 수 있도록, 브라우저의 `CustomEvent`를 사용했습니다.
+
+1. 장바구니가 바뀐 페이지 → `notifyCartUpdated(cart)` 호출
+2. `notifyCartUpdated`는 `window`에 `cart:updated` 이벤트를 발행
+3. Navbar는 그 이벤트를 듣다가, 새 수량으로 배지를 갱신
+
+```js
+// client/src/api/cart.js
+export const CART_UPDATED_EVENT = 'cart:updated'
+
+export function notifyCartUpdated(cart) {
+  if (typeof window === 'undefined') return
+  const totalQuantity =
+    cart && Number.isFinite(Number(cart.total_quantity))
+      ? Number(cart.total_quantity)
+      : null
+  window.dispatchEvent(
+    new CustomEvent(CART_UPDATED_EVENT, { detail: { totalQuantity } })
+  )
+}
+```
+
+주석:
+
+```js
+// window.dispatchEvent는 "방송"이라고 생각하면 됩니다.
+// 누구든 이 방송에 귀를 기울이고 있으면, 같은 메시지를 받을 수 있습니다.
+```
+
+Navbar 안에 만든 작은 훅 `useCartCount(me)`:
+
+```jsx
+function useCartCount(me) {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    if (!me) {
+      setCount(0)
+      return
+    }
+
+    let cancelled = false
+
+    async function fetchCount() {
+      const token = sessionStorage.getItem('token')
+      if (!token) return
+      const { ok, data } = await getMyCartRequest(token)
+      if (!ok || cancelled) return
+      const total = Number(data?.cart?.total_quantity)
+      setCount(Number.isFinite(total) ? total : 0)
+    }
+
+    fetchCount()
+
+    function onCartUpdated(e) {
+      const next = e?.detail?.totalQuantity
+      if (Number.isFinite(next)) setCount(next)
+      else fetchCount()
+    }
+
+    window.addEventListener(CART_UPDATED_EVENT, onCartUpdated)
+    return () => {
+      cancelled = true
+      window.removeEventListener(CART_UPDATED_EVENT, onCartUpdated)
+    }
+  }, [me])
+
+  return count
+}
+```
+
+주석:
+
+```jsx
+// 1. 로그인 상태(me)가 바뀔 때마다 effect가 다시 실행됩니다.
+// 2. 처음 한 번은 서버에서 직접 cart를 가져와 카운트를 채웁니다.
+// 3. 그 후로는 cart:updated 이벤트가 올 때마다,
+//    이벤트에 담긴 totalQuantity로 바로 갱신합니다.
+// 4. 만약 이벤트에 숫자가 없으면 안전하게 다시 fetch 합니다.
+```
+
+배지 UI:
+
+```jsx
+{hasBadge ? (
+  <span className="home__icon-badge" aria-hidden>
+    {badge > 99 ? '99+' : badge}
+  </span>
+) : null}
+```
+
+```css
+.home__icon-badge {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.55rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: #b00020;
+  color: #fff;
+  box-shadow: 0 0 0 2px #fff; /* 아이콘과 자연스럽게 분리 */
+}
+```
+
+연결 지점:
+
+- `ProductDetail.jsx`에서 담기 성공 시 `notifyCartUpdated(d.cart)`
+- `Cart.jsx`에서 모든 cart 변경 지점을 `applyCart`로 통일해 자동으로 이벤트 발행
+
+쉽게 말하면, 이제 어디서 무엇을 담아도 화면을 새로고침하지 않고 우측 상단 BAG 아이콘의 숫자가 즉시 바뀝니다.
+
+---
+
 ## 7. 중요한 API 정리
 
 ### 회원 API
@@ -794,6 +1203,18 @@ PATCH  /api/product-options/:id    상품 수정, 관리자만 가능
 DELETE /api/product-options/:id    상품 삭제, 관리자만 가능
 ```
 
+### 장바구니 API
+
+```txt
+GET    /api/cart                       내 장바구니 조회, 없으면 자동 생성
+POST   /api/cart/items                 장바구니에 상품 담기
+PATCH  /api/cart/items/:option_id      장바구니 항목 수정, 수량/사이즈
+DELETE /api/cart/items/:option_id      장바구니에서 항목 삭제
+DELETE /api/cart                       장바구니 전체 비우기
+```
+
+장바구니 API는 모두 로그인 토큰이 있어야 사용할 수 있습니다.
+
 ---
 
 ## 8. 화면 주소 정리
@@ -805,6 +1226,8 @@ DELETE /api/product-options/:id    상품 삭제, 관리자만 가능
 /admin                    관리자 대시보드
 /admin/products           상품 관리 페이지
 /admin/products/new       새 상품 등록 페이지
+/products/:id             상품 디테일 페이지
+/cart                     장바구니 페이지, 로그인 필요
 ```
 
 ---
@@ -979,16 +1402,19 @@ router.get('/', listProductOptions)
 
 아직 더 발전시킬 수 있는 기능들입니다.
 
-- 상품 상세 페이지
 - 상품 수정 페이지
-- 장바구니 기능
-- 주문 기능
-- 결제 기능
-- 회원 정보 수정
+- 주문 기능과 결제 연동
+- 회원 정보 수정 페이지
 - 관리자 주문 관리
-- 상품 검색 기능 강화
-- 이미지 여러 장 업로드
-- 실제 배포
+- 상품 검색 기능 강화 (자동완성, 정렬)
+- 이미지 여러 장 업로드와 슬라이드 뷰
+- 위시리스트(찜) 기능
+- 실제 배포 (Vercel, Render 등)
+
+이미 완성된 항목 (오늘 작업으로 체크):
+
+- ✅ 상품 상세 페이지 (`/products/:id`)
+- ✅ 장바구니 기능 (스키마, API, 화면, Navbar 카운트 배지)
 
 ---
 
@@ -1042,6 +1468,13 @@ router.get('/', listProductOptions)
 42. `@client/src/pages/Home.jsx 메인페이지에서 API 호출을 통해 상품 데이터 전체를 가져올 수 있게 해줘@server/routes/index.js @server/routes/productOptions.js`
 43. `지금까지 작업한 내용 중학생이 이해할수 있는 수준으로 주석 달아서 설명해주고 이걸 REAME.MD 파일로 만들어줘. 지금 강의 들으면서 웹페이지 만들고 있는 중이라. 내가 작업요청한 코딩 하나하나 기록해서 보고 싶어.`
 44. `내가 너한테 요청한 내용 원문도 같이 포함 시켜줘.`
+45. `지금까지 새로 추가로 작업한 내용과 README.MD 파일 GITHUB에 업데이트 해줘`
+46. `@client/src/pages/Home.jsx 여기서 상품카드를 클릭하면 상품디테일 페이지로 넘어가게 만들어줘, 상품 디테일 페이지 디자인은 이미지와 같이 만들어줘`
+47. `@server/models 여기에 장바구니 스키마를 만들어줘`
+48. `@server/routes 여기에서 장바구니 crud 라우터를 짜줘`
+49. `좋아 이어서 만들어줘`
+50. `navbar의 장바구니 아이콘에 현재 장바구니에 몇개의 아이템이 들어가 있는지 표시하는 ui를 만들어줘`
+51. `오늘 한거 @README.MD 여기에 작업한 내용이랑 그에 대한 설명 주석 같이 추가해줘`
 
 ---
 
@@ -1085,6 +1518,16 @@ router.get('/', listProductOptions)
 36. 상품 목록을 서버에서 조회
 37. 상품 목록 페이지네이션을 2개씩 표시
 38. 메인 페이지에서 실제 상품 데이터 조회
+39. 상품 디테일 페이지 생성, 상품 카드 클릭 시 이동
+40. 장바구니 스키마 생성 (`Cart`, `cartItemSchema`)
+41. 장바구니 중복 옵션 방지 `pre('save')` 훅 추가
+42. 장바구니 CRUD API 생성, 모두 로그인 필요
+43. `enrichCart`로 상품 정보 + 총액 계산까지 한 번에 응답
+44. 클라이언트 `api/cart.js` 작성, 토큰 자동 첨부
+45. 장바구니 페이지 생성, 수량 변경/삭제/전체 비우기 지원
+46. 상품 디테일의 "쇼핑백 담기" 버튼을 장바구니 API와 연결
+47. Navbar BAG 아이콘에 카운트 배지 UI 추가
+48. `cart:updated` 커스텀 이벤트로 카운트 실시간 동기화
 
 ---
 
@@ -1100,9 +1543,15 @@ router.get('/', listProductOptions)
 - 관리자 권한 확인 가능
 - 상품 등록 가능
 - 이미지 업로드 가능
-- 상품 목록 조회 가능
+- 상품 목록 조회 가능 (페이지네이션 포함)
 - 메인 페이지에서 실제 상품 표시 가능
+- 상품 카드 클릭 시 디테일 페이지로 이동 가능
+- 사이즈를 골라 장바구니에 담기 가능
+- 장바구니 페이지에서 수량 변경, 항목 삭제, 전체 비우기 가능
+- Navbar BAG 아이콘에서 장바구니 개수 실시간 확인 가능
 
 까지 구현되었습니다.
 
-즉, 지금 프로젝트는 **React 화면 + Express API + MongoDB 데이터베이스가 서로 연결된 쇼핑몰 기초 프로젝트**입니다.
+즉, 지금 프로젝트는 **React 화면 + Express API + MongoDB 데이터베이스가 서로 연결된, "회원 → 상품 탐색 → 장바구니"까지 한 흐름이 완성된 쇼핑몰 프로젝트**입니다.
+
+다음 단계로 주문/결제까지 이어진다면 실제 사용자가 구매할 수 있는 쇼핑몰에 한 발 더 가까워집니다.
